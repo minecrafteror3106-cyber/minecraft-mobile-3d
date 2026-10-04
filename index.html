@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>VoxelCraft Mobile</title>
+  <style>
+    :root {
+      --hud-bg: rgba(15, 17, 20, 0.42);
+      --hud-border: rgba(255,255,255,0.14);
+      --panel-bg: rgba(18, 22, 28, 0.6);
+      --panel-strong: rgba(0,0,0,0.28);
+      --button-main: #49b3ff;
+      --button-alt: #ffb547;
+      --button-danger: #ff6a6a;
+      --text: #eef6ff;
+      --muted: rgba(238,246,255,0.72);
+      --shadow: rgba(0,0,0,0.32);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+      image-rendering: auto;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      position: relative;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #81c7ff;
+      touch-action: none;
+      border: 0;
+      image-rendering: optimizeSpeed;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .status {
+      position: absolute;
+      top: max(14px, env(safe-area-inset-top));
+      left: 14px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: var(--hud-bg);
+      border: 1px solid var(--hud-border);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 8px 18px var(--shadow);
+      font-size: 12px;
+      line-height: 1.4;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .status strong {
+      color: var(--text);
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 24px;
+      height: 24px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      background: rgba(255,255,255,0.88);
+      box-shadow: 0 0 8px rgba(255,255,255,0.7);
+      transform: translate(-50%, -50%);
+    }
+
+    .crosshair::before {
+      width: 2px;
+      height: 24px;
+    }
+
+    .crosshair::after {
+      width: 24px;
+      height: 2px;
+    }
+
+    .joystick {
+      position: absolute;
+      left: 18px;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      width: 134px;
+      height: 134px;
+      border-radius: 50%;
+      background: rgba(18, 27, 36, 0.3);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 0 24px rgba(255,255,255,0.02), 0 10px 24px rgba(0,0,0,0.22);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .joystick .ring {
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .joystick .pad {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 54px;
+      height: 54px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: inset 0 0 20px rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .joystick .stick {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: -20px;
+      margin-top: -20px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+      transition: transform 0.08s ease-out;
+    }
+
+    .look-pad {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 42%;
+      height: 80%;
+      min-width: 150px;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .actions {
+      position: absolute;
+      right: 18px;
+      bottom: calc(88px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .action-btn {
+      width: min(132px, 18vw);
+      min-width: 112px;
+      height: 54px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: white;
+      box-shadow: 0 8px 26px rgba(0,0,0,0.28);
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+
+    #mineBtn {
+      background: linear-gradient(180deg, var(--button-danger), #d94747);
+    }
+
+    #placeBtn {
+      background: linear-gradient(180deg, var(--button-main), #2d8ad9);
+    }
+
+    .hotbar-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(82vw, 620px);
+      pointer-events: auto;
+    }
+
+    .hotbar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 10px 10px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      border-radius: 16px;
+      background: rgba(12, 16, 22, 0.4);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+      backdrop-filter: blur(8px);
+      touch-action: pan-x pan-y;
+    }
+
+    .hotbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .slot {
+      flex: 0 0 78px;
+      height: 62px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+    }
+
+    .slot.active {
+      border-color: rgba(255,255,255,0.5);
+      background: rgba(54, 116, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .slot::before {
+      content: "";
+      position: absolute;
+      inset: 10px 12px 16px;
+      border-radius: 8px;
+      background: var(--slot-color, #8d8d8d);
+      box-shadow: inset 0 -6px 10px rgba(0,0,0,0.18);
+    }
+
+    .slot span {
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="hud">
+    <div class="status">
+      <div><strong>Chunk</strong> 16x16</div>
+      <div id="targetText">Target: none</div>
+    </div>
+
+    <div class="crosshair"></div>
+
+    <div id="joystick" class="joystick" aria-label="Movement joystick">
+      <div class="ring"></div>
+      <div class="pad"></div>
+      <div id="stick" class="stick"></div>
+    </div>
+
+    <div id="lookPad" class="look-pad" aria-label="Look pad"></div>
+
+    <div class="actions">
+      <button id="mineBtn" class="action-btn">MINE</button>
+      <button id="placeBtn" class="action-btn">PLACE</button>
+    </div>
+
+    <div class="hotbar-wrap">
+      <div id="hotbar" class="hotbar" aria-label="Hotbar inventory"></div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const hotbar = document.getElementById('hotbar');
+      const targetText = document.getElementById('targetText');
+      const joystickEl = document.getElementById('joystick');
+      const stickEl = document.getElementById('stick');
+      const lookPad = document.getElementById('lookPad');
+      const mineBtn = document.getElementById('mineBtn');
+      const placeBtn = document.getElementById('placeBtn');
+
+      const WORLD_W = 16;
+      const WORLD_D = 16;
+      const WORLD_H = 10;
+      const MAX_RAY = 9;
+      const FOV = Math.PI / 2.8;
+      const BLOCK = {
+        AIR: 0,
+        GRASS: 1,
+        DIRT: 2,
+        STONE: 3,
+        SAND: 4,
+        BRICK: 5,
+      };
+
+      const BLOCK_NAME = {
+        0: 'Air',
+        1: 'Grass',
+        2: 'Dirt',
+        3: 'Stone',
+        4: 'Sand',
+        5: 'Brick'
+      };
+
+      const BLOCK_COLOR = {
+        1: '#7BCB5B',
+        2: '#8D5F32',
+        3: '#8F8F8F',
+        4: '#E3CB6A',
+        5: '#C46B5E'
+      };
+
+      const hotbarItems = [
+        { id: BLOCK.GRASS, name: 'Grass' },
+        { id: BLOCK.DIRT, name: 'Dirt' },
+        { id: BLOCK.STONE, name: 'Stone' },
+        { id: BLOCK.SAND, name: 'Sand' },
+        { id: BLOCK.BRICK, name: 'Brick' }
+      ];
+
+      let world = new Uint8Array(WORLD_W * WORLD_D * WORLD_H);
+      let selectedIndex = 0;
+      let lastTime = 0;
+      let targetBlock = null;
+      let currentTargetLabel = 'none';
+
+      const player = {
+        x: 7.5,
+        y: 4.0,
+        z: 8.5,
+        yaw: -Math.PI / 2,
+        pitch: -0.08,
+        speed: 2.7,
+        radius: 0.28,
+        height: 1.7
+      };
+
+      const input = {
+        moveX: 0,
+        moveY: 0,
+        lookActive: false,
+        lookX: 0,
+        lookY: 0,
+        joystickPointer: null,
+        lookPointer: null
+      };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function vec3(x, y, z) {
+        return { x, y, z };
+      }
+
+      function toIndex(x, y, z) {
+        return ((y * WORLD_D) + z) * WORLD_W + x;
+      }
+
+      function inBounds(x, y, z) {
+        return x >= 0 && x < WORLD_W && y >= 0 && y < WORLD_H && z >= 0 && z < WORLD_D;
+      }
+
+      function getBlock(x, y, z) {
+        if (!inBounds(x, y, z)) return BLOCK.AIR;
+        return world[toIndex(x, y, z)] || BLOCK.AIR;
+      }
+
+      function setBlock(x, y, z, value) {
+        if (!inBounds(x, y, z)) return;
+        world[toIndex(x, y, z)] = value;
+      }
+
+      function terrainHeightAt(x, z) {
+        let highest = 0;
+        for (let y = 0; y < WORLD_H; y++) {
+          if (getBlock(x, y, z) !== BLOCK.AIR) {
+            highest = y;
+          }
+        }
+        return highest;
+      }
+
+      function computeGroundHeight(px, pz) {
+        const x = Math.floor(px);
+        const z = Math.floor(pz);
+        if (!inBounds(x, 0, z)) return 0;
+        return terrainHeightAt(x, z) + 1.1;
+      }
+
+      function generateWorld() {
+        world.fill(BLOCK.AIR);
+
+        for (let z = 0; z < WORLD_D; z++) {
+          for (let x = 0; x < WORLD_W; x++) {
+            const n1 = Math.sin(x * 0.9 + 0.7);
+            const n2 = Math.cos(z * 1.1 - 0.5);
+            const height = 2 + Math.floor((n1 + n2) * 1.5 + 0.5);
+            const safeH = clamp(height, 2, WORLD_H - 2);
+
+            for (let y = 0; y <= safeH; y++) {
+              let type = BLOCK.STONE;
+              if (y === safeH) type = BLOCK.GRASS;
+              else if (y >= safeH - 2) type = BLOCK.DIRT;
+              setBlock(x, y, z, type);
+            }
+
+            if ((x + z) % 5 === 0 && safeH > 2) {
+              setBlock(x, safeH + 1, z, BLOCK.STONE);
+            }
+            if ((x * z) % 7 === 0 && safeH < WORLD_H - 1) {
+              setBlock(x, safeH + 1, z, BLOCK.SAND);
+            }
+          }
+        }
+      }
+
+      function renderHotbar() {
+        hotbar.innerHTML = '';
+
+        hotbarItems.forEach((item, index) => {
+          const slot = document.createElement('button');
+          slot.type = 'button';
+          slot.className = 'slot' + (selectedIndex === index ? ' active' : '');
+          slot.style.setProperty('--slot-color', BLOCK_COLOR[item.id]);
+          slot.innerHTML = '<span>' + item.name.slice(0, 3) + '</span>';
+          slot.addEventListener('click', () => {
+            selectedIndex = index;
+            renderHotbar();
+          });
+          hotbar.appendChild(slot);
+        });
+      }
+
+      function normalize(v) {
+        const len = Math.hypot(v.x, v.y, v.z) || 1;
+        return { x: v.x / len, y: v.y / len, z: v.z / len };
+      }
+
+      function cross(a, b) {
+        return {
+          x: a.y * b.z - a.z * b.y,
+          y: a.z * b.x - a.x * b.z,
+          z: a.x * b.y - a.y * b.x
+        };
+      }
+
+      function add(a, b) {
+        return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+      }
+
+      function sub(a, b) {
+        return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+      }
+
+      function scale(v, s) {
+        return { x: v.x * s, y: v.y * s, z: v.z * s };
+      }
+
+      function raycast(origin, dir, maxDist) {
+        const step = 0.06;
+        const startPos = { x: origin.x, y: origin.y, z: origin.z };
+        let prev = { x: Math.floor(startPos.x), y: Math.floor(startPos.y), z: Math.floor(startPos.z) };
+
+        for (let d = 0; d <= maxDist; d += step) {
+          const sample = {
+            x: startPos.x + dir.x * d,
+            y: startPos.y + dir.y * d,
+            z: startPos.z + dir.z * d
+          };
+
+          const cell = {
+            x: Math.floor(sample.x),
+            y: Math.floor(sample.y),
+            z: Math.floor(sample.z)
+          };
+
+          if (cell.x !== prev.x || cell.y !== prev.y || cell.z !== prev.z) {
+            prev = { x: cell.x, y: cell.y, z: cell.z };
+          }
+
+          if (getBlock(cell.x, cell.y, cell.z) !== BLOCK.AIR) {
+            const normal = { x: 0, y: 0, z: 0 };
+            const last = {
+              x: Math.floor((sample.x - dir.x * step) + 0.5),
+              y: Math.floor((sample.y - dir.y * step) + 0.5),
+              z: Math.floor((sample.z - dir.z * step) + 0.5)
+            };
+
+            const dx = cell.x - last.x;
+            const dy = cell.y - last.y;
+            const dz = cell.z - last.z;
+
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > Math.abs(dz)) normal.x = dx;
+            else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > Math.abs(dz)) normal.y = dy;
+            else if (Math.abs(dz) > Math.abs(dx) && Math.abs(dz) > Math.abs(dy)) normal.z = dz;
+
+            return {
+              x: cell.x,
+              y: cell.y,
+              z: cell.z,
+              type: getBlock(cell.x, cell.y, cell.z),
+              normal,
+              distance: d,
+              hitPos: sample
+            };
+          }
+        }
+
+        return null;
+      }
+
+      function getCameraVectors() {
+        const cosPitch = Math.cos(player.pitch);
+        const forward = {
+          x: Math.sin(player.yaw) * cosPitch,
+          y: Math.sin(player.pitch),
+          z: Math.cos(player.yaw) * cosPitch
+        };
+
+        const worldUp = { x: 0, y: 1, z: 0 };
+        const right = normalize(cross(forward, worldUp));
+        const up = normalize(cross(right, forward));
+        return { forward, right, up };
+      }
+
+      function shadeColor(hex, factor) {
+        const value = hex.replace('#', '');
+        const num = parseInt(value, 16);
+        const r = Math.min(255, Math.max(0, ((num >> 16) & 255) * factor));
+        const g = Math.min(255, Math.max(0, ((num >> 8) & 255) * factor));
+        const b = Math.min(255, Math.max(0, (num & 255) * factor));
+        return 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ')';
+      }
+
+      function drawSky() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#88d0ff');
+        gradient.addColorStop(0.35, '#d7ecff');
+        gradient.addColorStop(0.7, '#a9c7ff');
+        gradient.addColorStop(1, '#5d7ca8');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = 'rgba(30, 42, 58, 0.18)';
+        ctx.fillRect(0, canvas.height * 0.44, canvas.width, canvas.height * 0.56);
+      }
+
+      function drawWorld() {
+        const width = canvas.width;
+        const height = canvas.height;
+        const horizon = height * 0.5;
+        const aspect = width / height;
+        const { forward, right, up } = getCameraVectors();
+        const renderWidth = Math.max(180, Math.min(360, Math.floor(width * 0.42)));
+
+        const fovScale = Math.tan(FOV / 2) * 2;
+
+        for (let x = 0; x < renderWidth; x++) {
+          const nx = (x / renderWidth) * 2 - 1;
+          const rayDir = normalize(add(forward, add(scale(right, nx * fovScale * aspect), scale(up, (x / renderWidth - 0.5) * 2 * 0.9))));
+          const hit = raycast({ x: player.x, y: player.y, z: player.z }, rayDir, MAX_RAY);
+
+          const columnX = Math.floor((x / renderWidth) * width);
+          let wallTop = height * 0.5;
+          let wallHeight = height;
+
+          if (hit) {
+            const dist = Math.max(0.2, hit.distance);
+            const screenHeight = (height / dist) * 0.85;
+            wallHeight = clamp(screenHeight, 16, height * 0.9);
+            wallTop = horizon - wallHeight * 0.5;
+
+            const base = BLOCK_COLOR[hit.type] || '#fff';
+            let shade = 1.0;
+            if (hit.normal.x) shade *= 0.78;
+            if (hit.normal.y) shade *= 0.9;
+            if (hit.normal.z) shade *= 0.84;
+            const d = clamp(1 - dist / MAX_RAY, 0.25, 1);
+            const color = shadeColor(base, shade * (0.45 + d * 0.8));
+
+            ctx.fillStyle = color;
+            ctx.fillRect(columnX, wallTop, Math.max(2, width / renderWidth + 1), wallHeight + 2);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(columnX, wallTop, Math.max(2, width / renderWidth + 1), wallHeight + 2);
+          } else {
+            ctx.fillStyle = 'rgba(44, 63, 78, 0.18)';
+            ctx.fillRect(columnX, horizon, Math.max(2, width / renderWidth + 1), height - horizon);
+          }
+        }
+
+        const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
+        floorGrad.addColorStop(0.0, 'rgba(150, 128, 78, 0.28)');
+        floorGrad.addColorStop(1.0, 'rgba(61, 47, 32, 0.38)');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, horizon, width, height - horizon);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, horizon);
+        ctx.lineTo(width, horizon);
+        ctx.stroke();
+      }
+
+      function drawDebugTarget() {
+        if (!targetBlock) {
+          targetText.textContent = 'Target: none';
+          return;
+        }
+
+        const typeName = BLOCK_NAME[targetBlock.type] || 'Unknown';
+        const coords = `${targetBlock.x}, ${targetBlock.y}, ${targetBlock.z}`;
+        targetText.textContent = `Target: ${typeName} @ ${coords}`;
+      }
+
+      function updateTarget() {
+        const { forward, right, up } = getCameraVectors();
+        const ray = normalize(forward);
+        const hit = raycast({ x: player.x, y: player.y, z: player.z }, ray, 7.2);
+        targetBlock = hit;
+        drawDebugTarget();
+      }
+
+      function tryMineBlock() {
+        if (!targetBlock) return;
+        setBlock(targetBlock.x, targetBlock.y, targetBlock.z, BLOCK.AIR);
+        updateTarget();
+      }
+
+      function tryPlaceBlock() {
+        if (!targetBlock) return;
+        const placeType = hotbarItems[selectedIndex].id;
+        const x = targetBlock.x + targetBlock.normal.x;
+        const y = targetBlock.y + targetBlock.normal.y;
+        const z = targetBlock.z + targetBlock.normal.z;
+
+        if (!inBounds(x, y, z)) return;
+        if (getBlock(x, y, z) !== BLOCK.AIR) return;
+        setBlock(x, y, z, placeType);
+        updateTarget();
+      }
+
+      function drawCrosshair() {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, cy);
+        ctx.lineTo(cx + 12, cy);
+        ctx.moveTo(cx, cy - 12);
+        ctx.lineTo(cx, cy + 12);
+        ctx.stroke();
+      }
+
+      function updateMovement(dt) {
+        if (Math.abs(input.moveX) < 0.04 && Math.abs(input.moveY) < 0.04) return;
+
+        const forward = {
+          x: Math.sin(player.yaw),
+          z: Math.cos(player.yaw)
+        };
+        const right = {
+          x: Math.cos(player.yaw),
+          z: -Math.sin(player.yaw)
+        };
+
+        const moveX = forward.x * input.moveY + right.x * input.moveX;
+        const moveZ = forward.z * input.moveY + right.z * input.moveX;
+        const len = Math.hypot(moveX, moveZ) || 1;
+        const stepX = (moveX / len) * player.speed * dt;
+        const stepZ = (moveZ / len) * player.speed * dt;
+
+        const nextX = player.x + stepX;
+        const nextZ = player.z + stepZ;
+
+        const ground = computeGroundHeight(nextX, nextZ);
+        const playerY = ground + 1.2;
+
+        const xCell = Math.floor(nextX);
+        const zCell = Math.floor(nextZ);
+        const yCell = Math.floor(playerY);
+
+        if (xCell >= 0 && xCell < WORLD_W && zCell >= 0 && zCell < WORLD_D) {
+          const current = getBlock(xCell, yCell, zCell);
+          if (current === BLOCK.AIR) {
+            player.x = nextX;
+            player.z = nextZ;
+            player.y = playerY;
+          }
+        }
+      }
+
+      function resizeCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(window.innerWidth * ratio);
+        canvas.height = Math.floor(window.innerHeight * ratio);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(ratio, ratio);
+      }
+
+      function update(dt) {
+        updateMovement(dt);
+        updateTarget();
+        player.y = computeGroundHeight(player.x, player.z) + 1.2;
+      }
+
+      function render() {
+        drawSky();
+        drawWorld();
+        drawCrosshair();
+      }
+
+      function tick(ts) {
+        const dt = Math.min((ts - lastTime) / 1000 || 0.016, 0.04);
+        lastTime = ts;
+        update(dt);
+        render();
+        requestAnimationFrame(tick);
+      }
+
+      function setupJoystick() {
+        const maxRadius = 40;
+
+        function setStickFromVec(x, y) {
+          const dx = clamp(x, -1, 1);
+          const dy = clamp(y, -1, 1);
+          const len = Math.hypot(dx, dy) || 1;
+          const nx = dx / len;
+          const ny = dy / len;
+          const radius = Math.min(maxRadius, Math.hypot(dx, dy) * maxRadius);
+          const angle = Math.atan2(dy, dx);
+          const px = Math.cos(angle) * radius;
+          const py = Math.sin(angle) * radius;
+          stickEl.style.transform = `translate(${px}px, ${py}px)`;
+          input.moveX = nx * 0.9;
+          input.moveY = -ny * 0.9;
+        }
+
+        joystickEl.addEventListener('touchstart', (event) => {
+          event.preventDefault();
+          const touch = event.touches[0];
+          const rect = joystickEl.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = (touch.clientX - cx) / (rect.width / 2);
+          const dy = (touch.clientY - cy) / (rect.height / 2);
+          setStickFromVec(dx, dy);
+          input.joystickPointer = touch.identifier;
+        }, { passive: false });
+
+        joystickEl.addEventListener('touchmove', (event) => {
+          event.preventDefault();
+          for (let i = 0; i < event.touches.length; i++) {
+            const touch = event.touches[i];
+            if (touch.identifier === input.joystickPointer) {
+              const rect = joystickEl.getBoundingClientRect();
+              const cx = rect.left + rect.width / 2;
+              const cy = rect.top + rect.height / 2;
+              const dx = (touch.clientX - cx) / (rect.width / 2);
+              const dy = (touch.clientY - cy) / (rect.height / 2);
+              const dist = Math.hypot(dx, dy);
+              const clamped = dist > 1 ? 1 / dist : 1;
+              setStickFromVec(dx * clamped, dy * clamped);
+              break;
+            }
+          }
+        }, { passive: false });
+
+        function resetJoystick() {
+          stickEl.style.transform = 'translate(0px, 0px)';
+          input.moveX = 0;
+          input.moveY = 0;
+          input.joystickPointer = null;
+        }
+
+        joystickEl.addEventListener('touchend', resetJoystick, { passive: false });
+        joystickEl.addEventListener('touchcancel', resetJoystick, { passive: false });
+      }
+
+      function setupLookPad() {
+        let active = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        function onStart(event) {
+          event.preventDefault();
+          const touch = event.touches[0];
+          lastX = touch.clientX;
+          lastY = touch.clientY;
+          active = true;
+          input.lookPointer = touch.identifier;
+        }
+
+        function onMove(event) {
+          event.preventDefault();
+          if (!active) return;
+          for (let i = 0; i < event.touches.length; i++) {
+            const touch = event.touches[i];
+            if (touch.identifier === input.lookPointer) {
+              const dx = touch.clientX - lastX;
+              const dy = touch.clientY - lastY;
+              player.yaw -= dx * 0.0055;
+              player.pitch = clamp(player.pitch - dy * 0.0036, -1.2, 1.2);
+              lastX = touch.clientX;
+              lastY = touch.clientY;
+              break;
+            }
+          }
+        }
+
+        function onEnd() {
+          active = false;
+          input.lookPointer = null;
+        }
+
+        lookPad.addEventListener('touchstart', onStart, { passive: false });
+        lookPad.addEventListener('touchmove', onMove, { passive: false });
+        lookPad.addEventListener('touchend', onEnd, { passive: false });
+        lookPad.addEventListener('touchcancel', onEnd, { passive: false });
+      }
+
+      function setupButtons() {
+        mineBtn.addEventListener('touchstart', (event) => {
+          event.preventDefault();
+          tryMineBlock();
+        }, { passive: false });
+
+        placeBtn.addEventListener('touchstart', (event) => {
+          event.preventDefault();
+          tryPlaceBlock();
+        }, { passive: false });
+
+        mineBtn.addEventListener('click', tryMineBlock);
+        placeBtn.addEventListener('click', tryPlaceBlock);
+      }
+
+      function bindKeyboard() {
+        document.addEventListener('keydown', (event) => {
+          const key = event.key.toLowerCase();
+          if (key === 'w') input.moveY = 1;
+          if (key === 's') input.moveY = -1;
+          if (key === 'a') input.moveX = -1;
+          if (key === 'd') input.moveX = 1;
+
+          if (key === 'e') {
+            selectedIndex = (selectedIndex + 1) % hotbarItems.length;
+            renderHotbar();
+          }
+          if (key === 'q') {
+            selectedIndex = (selectedIndex - 1 + hotbarItems.length) % hotbarItems.length;
+            renderHotbar();
+          }
+
+          if (key === ' ') tryMineBlock();
+          if (key === 'f') tryPlaceBlock();
+        });
+
+        document.addEventListener('keyup', (event) => {
+          const key = event.key.toLowerCase();
+          if (key === 'w' || key === 's') input.moveY = 0;
+          if (key === 'a' || key === 'd') input.moveX = 0;
+        });
+      }
+
+      function init() {
+        generateWorld();
+        renderHotbar();
+        resizeCanvas();
+        setupJoystick();
+        setupLookPad();
+        setupButtons();
+        bindKeyboard();
+        window.addEventListener('resize', resizeCanvas);
+        document.body.addEventListener('touchmove', (event) => {
+          if (event.target === document.body || event.target === canvas) {
+            event.preventDefault();
+          }
+        }, { passive: false });
+        document.body.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+        document.body.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+        requestAnimationFrame(tick);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
